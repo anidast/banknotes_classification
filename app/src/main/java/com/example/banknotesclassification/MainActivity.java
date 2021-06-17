@@ -6,6 +6,7 @@ import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.hardware.Camera;
+import android.media.MediaPlayer;
 import android.os.Bundle;
 import android.os.SystemClock;
 import android.util.Log;
@@ -13,6 +14,9 @@ import android.view.View;
 import android.view.WindowManager;
 import android.widget.LinearLayout;
 import android.widget.Toast;
+
+import org.tensorflow.lite.gpu.GpuDelegate;
+import org.tensorflow.lite.nnapi.NnApiDelegate;
 
 import java.io.IOException;
 import java.util.List;
@@ -27,6 +31,7 @@ public class MainActivity extends AppCompatActivity {
     private boolean cameraFront = false;
     private static Bitmap bitmap;
     private Classifier classifier;
+    private MediaPlayer seribu, duaRibu, limaRibu, sepuluhRibu, duapuluhRibu, limapuluhRibu,seratusRibu;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -35,6 +40,14 @@ public class MainActivity extends AppCompatActivity {
 
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         myContext = this;
+
+        seribu = MediaPlayer.create(myContext, R.raw.seribu);
+        duaRibu = MediaPlayer.create(myContext, R.raw.dua_ribu);
+        limaRibu = MediaPlayer.create(myContext, R.raw.lima_ribu);
+        sepuluhRibu = MediaPlayer.create(myContext, R.raw.sepuluh_ribu);
+        duapuluhRibu = MediaPlayer.create(myContext, R.raw.duapuluh_ribu);
+        limapuluhRibu = MediaPlayer.create(myContext, R.raw.limapuluh_ribu);
+        seratusRibu = MediaPlayer.create(myContext, R.raw.seratus_ribu);
 
         cameraPreview = (LinearLayout) findViewById(R.id.cameraPreview);
         mPreview = new CameraPreview(myContext, mCamera);
@@ -114,7 +127,31 @@ public class MainActivity extends AppCompatActivity {
         Classifier.Recognition recognition = results.get(0);
         if (recognition != null) {
             if (recognition.getTitle() != null && recognition.getConfidence() != null && recognition.getConfidence() > 0.9) {
-                Toast.makeText(this, recognition.getTitle(), Toast.LENGTH_LONG).show();
+//                Toast.makeText(this, recognition.getTitle(), Toast.LENGTH_LONG).show();
+
+                switch (recognition.getTitle()) {
+                    case "1000":
+                        seribu.start();
+                        break;
+                    case "2000":
+                        duaRibu.start();
+                        break;
+                    case "5000":
+                        limaRibu.start();
+                        break;
+                    case "10000":
+                        sepuluhRibu.start();
+                        break;
+                    case "20000":
+                        duapuluhRibu.start();
+                        break;
+                    case "50000":
+                        limapuluhRibu.start();
+                        break;
+                    case "100000":
+                        seratusRibu.start();
+                        break;
+                }
             } else {
                 Toast.makeText(this, "Uang tidak terdeteksi", Toast.LENGTH_LONG).show();
             }
