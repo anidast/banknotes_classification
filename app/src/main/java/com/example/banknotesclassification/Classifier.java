@@ -29,6 +29,7 @@ import org.tensorflow.lite.nnapi.NnApiDelegate;
 import org.tensorflow.lite.support.common.FileUtil;
 import org.tensorflow.lite.support.common.TensorOperator;
 import org.tensorflow.lite.support.common.TensorProcessor;
+import org.tensorflow.lite.support.common.ops.NormalizeOp;
 import org.tensorflow.lite.support.image.ImageProcessor;
 import org.tensorflow.lite.support.image.TensorImage;
 import org.tensorflow.lite.support.image.ops.ResizeOp;
@@ -49,16 +50,21 @@ import java.util.PriorityQueue;
 import static java.lang.Math.min;
 
 /** A classifier specialized to label images using TensorFlow Lite. */
-public abstract class Classifier {
+public class Classifier {
   public static final String TAG = "ClassifierWithSupport";
 
-//  /** The model type used for classification. */
-//  public enum Model {
-//    FLOAT_MOBILENET,
-//    QUANTIZED_MOBILENET,
-//    FLOAT_EFFICIENTNET,
-//    QUANTIZED_EFFICIENTNET
-//  }
+  /** Float MobileNet requires additional normalization of the used input. */
+  private static final float IMAGE_MEAN = 127.5f;
+
+  private static final float IMAGE_STD = 127.5f;
+
+  /**
+   * Float model does not need dequantization in the post-processing. Setting mean and std as 0.0f
+   * and 1.0f, repectively, to bypass the normalization.
+   */
+  private static final float PROBABILITY_MEAN = 0.0f;
+
+  private static final float PROBABILITY_STD = 1.0f;
 
   /** The runtime device type used for executing classification. */
   public enum Device {
@@ -110,9 +116,10 @@ public abstract class Classifier {
    * @param numThreads The number of threads to use for classification.
    * @return A classifier with the desired configuration.
    */
+
   public static com.example.banknotesclassification.Classifier create(Activity activity, Device device, int numThreads)
       throws IOException {
-    return new com.example.banknotesclassification.ClassifierFloatMobileNet(activity, device, numThreads);
+    return new com.example.banknotesclassification.Classifier(activity, device, numThreads);
   }
 
   /** An immutable result returned by a Classifier describing what was recognized. */
@@ -334,22 +341,22 @@ public abstract class Classifier {
     return recognitions;
   }
 
-  /** Gets the name of the model file stored in Assets. */
-  protected abstract String getModelPath();
+  protected String getModelPath() {
+    // you can download this file from
+    // see build.gradle for where to obtain this file. It should be auto
+    // downloaded into assets.
+    return "Model.tflite";
+  }
 
-  /** Gets the name of the label file stored in Assets. */
-  protected abstract String getLabelPath();
+  protected String getLabelPath() {
+    return "labels.txt";
+  }
 
-  /** Gets the TensorOperator to nomalize the input image in preprocessing. */
-  protected abstract TensorOperator getPreprocessNormalizeOp();
+  protected TensorOperator getPreprocessNormalizeOp() {
+    return new NormalizeOp(IMAGE_MEAN, IMAGE_STD);
+  }
 
-  /**
-   * Gets the TensorOperator to dequantize the output probability in post processing.
-   *
-   * <p>For quantized model, we need de-quantize the prediction with NormalizeOp (as they are all
-   * essentially linear transformation). For float model, de-quantize is not required. But to
-   * uniform the API, de-quantize is added to float model too. Mean and std are set to 0.0f and
-   * 1.0f, respectively.
-   */
-  protected abstract TensorOperator getPostprocessNormalizeOp();
+  protected TensorOperator getPostprocessNormalizeOp() {
+    return new NormalizeOp(PROBABILITY_MEAN, PROBABILITY_STD);
+  }
 }
