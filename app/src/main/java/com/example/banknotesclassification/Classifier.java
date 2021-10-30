@@ -112,14 +112,13 @@ public class Classifier {
    * Creates a classifier with the provided configuration.
    *
    * @param activity The current Activity.
-   * @param device The device to use for classification.
    * @param numThreads The number of threads to use for classification.
    * @return A classifier with the desired configuration.
    */
 
-  public static com.example.banknotesclassification.Classifier create(Activity activity, Device device, int numThreads)
+  public static com.example.banknotesclassification.Classifier create(Activity activity, int numThreads)
       throws IOException {
-    return new com.example.banknotesclassification.Classifier(activity, device, numThreads);
+    return new com.example.banknotesclassification.Classifier(activity, numThreads);
   }
 
   /** An immutable result returned by a Classifier describing what was recognized. */
@@ -161,14 +160,6 @@ public class Classifier {
       return confidence;
     }
 
-    public RectF getLocation() {
-      return new RectF(location);
-    }
-
-    public void setLocation(RectF location) {
-      this.location = location;
-    }
-
     @Override
     public String toString() {
       String resultString = "";
@@ -184,30 +175,14 @@ public class Classifier {
         resultString += String.format("(%.1f%%) ", confidence * 100.0f);
       }
 
-      if (location != null) {
-        resultString += location + " ";
-      }
-
       return resultString.trim();
     }
   }
 
   /** Initializes a {@code Classifier}. */
-  protected Classifier(Activity activity, Device device, int numThreads) throws IOException {
+  protected Classifier(Activity activity, int numThreads) throws IOException {
     MappedByteBuffer tfliteModel = FileUtil.loadMappedFile(activity, getModelPath());
-    switch (device) {
-      case NNAPI:
-        nnApiDelegate = new NnApiDelegate();
-        tfliteOptions.addDelegate(nnApiDelegate);
-        break;
-      case GPU:
-        gpuDelegate = new GpuDelegate();
-        tfliteOptions.addDelegate(gpuDelegate);
-        break;
-      case CPU:
-        tfliteOptions.setUseXNNPACK(true);
-        break;
-    }
+    tfliteOptions.setUseXNNPACK(true);
     tfliteOptions.setNumThreads(numThreads);
     tflite = new Interpreter(tfliteModel, tfliteOptions);
 
@@ -234,7 +209,7 @@ public class Classifier {
     // Creates the post processor for the output probability.
     probabilityProcessor = new TensorProcessor.Builder().add(getPostprocessNormalizeOp()).build();
 
-    Log.d(TAG, "Created a Tensorflow Lite Image Classifier.");
+    Log.d(TAG, "Created a Classifier.");
   }
 
   /** Runs inference and returns the classification results. */
@@ -301,14 +276,13 @@ public class Classifier {
     // Creates processor for the TensorImage.
     int cropSize = min(bitmap.getWidth(), bitmap.getHeight());
     int numRotation = sensorOrientation / 90;
-    // TODO(b/143564309): Fuse ops inside ImageProcessor.
     ImageProcessor imageProcessor =
         new ImageProcessor.Builder()
             .add(new ResizeWithCropOrPadOp(cropSize, cropSize))
-            // TODO(b/169379396): investigate the impact of the resize algorithm on accuracy.
+
             // To get the same inference results as lib_task_api, which is built on top of the Task
             // Library, use ResizeMethod.BILINEAR.
-            .add(new ResizeOp(imageSizeX, imageSizeY, ResizeMethod.NEAREST_NEIGHBOR))
+            .add(new ResizeOp(imageSizeX, imageSizeY, ResizeMethod.BILINEAR))
             .add(new Rot90Op(numRotation))
             .add(getPreprocessNormalizeOp())
             .build();

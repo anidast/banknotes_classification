@@ -8,15 +8,13 @@ import android.graphics.BitmapFactory;
 import android.hardware.Camera;
 import android.media.MediaPlayer;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.SystemClock;
 import android.util.Log;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.LinearLayout;
 import android.widget.Toast;
-
-import org.tensorflow.lite.gpu.GpuDelegate;
-import org.tensorflow.lite.nnapi.NnApiDelegate;
 
 import java.io.IOException;
 import java.util.List;
@@ -31,7 +29,9 @@ public class MainActivity extends AppCompatActivity {
     private boolean cameraFront = false;
     private static Bitmap bitmap;
     private Classifier classifier;
-    private MediaPlayer seribu, duaRibu, limaRibu, sepuluhRibu, duapuluhRibu, limapuluhRibu,seratusRibu;
+    private MediaPlayer seribu, duaRibu, limaRibu, sepuluhRibu, duapuluhRibu, limapuluhRibu,seratusRibu, tidakTerdeteksi, howTo, selamatDatang;
+    Handler handler;
+    Runnable r;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -41,6 +41,16 @@ public class MainActivity extends AppCompatActivity {
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         myContext = this;
 
+        handler = new Handler();
+        r = new Runnable() {
+            @Override
+            public void run() {
+                howTo.start();
+                startHandler();
+            }
+        };
+//        startHandler();
+
         seribu = MediaPlayer.create(myContext, R.raw.seribu);
         duaRibu = MediaPlayer.create(myContext, R.raw.dua_ribu);
         limaRibu = MediaPlayer.create(myContext, R.raw.lima_ribu);
@@ -48,6 +58,9 @@ public class MainActivity extends AppCompatActivity {
         duapuluhRibu = MediaPlayer.create(myContext, R.raw.duapuluh_ribu);
         limapuluhRibu = MediaPlayer.create(myContext, R.raw.limapuluh_ribu);
         seratusRibu = MediaPlayer.create(myContext, R.raw.seratus_ribu);
+        tidakTerdeteksi = MediaPlayer.create(myContext, R.raw.tidak_terdeteksi);
+        howTo = MediaPlayer.create(myContext, R.raw.how_to);
+        selamatDatang = MediaPlayer.create(myContext, R.raw.selamat_datang);
 
         cameraPreview = (LinearLayout) findViewById(R.id.cameraPreview);
         mPreview = new CameraPreview(myContext, mCamera);
@@ -63,22 +76,40 @@ public class MainActivity extends AppCompatActivity {
         onResume();
         mCamera.startPreview();
 
+        selamatDatang.start();
+
         try {
-            classifier = Classifier.create(this, Classifier.Device.CPU, 1);
+            classifier = Classifier.create(this, 1);
         } catch (IOException | IllegalArgumentException e) {
             Log.e(e.toString(), "Failed to create classifier.");
             Toast.makeText(this, e.getMessage(), Toast.LENGTH_LONG).show();
         }
     }
 
+    @Override
+    public void onUserInteraction() {
+        // TODO Auto-generated method stub
+        super.onUserInteraction();
+        stopHandler();
+        startHandler();
+    }
+    public void stopHandler() {
+        handler.removeCallbacks(r);
+    }
+    public void startHandler() {
+        handler.postDelayed(r, 30*1000);
+    }
+
     public void onResume() {
 
         super.onResume();
+
         if(mCamera == null) {
             mCamera = Camera.open();
             mCamera.setDisplayOrientation(90);
             mPicture = getPictureCallback();
             mPreview.refreshCamera(mCamera);
+            startHandler();
             Log.d("nu", "null");
         }else {
             Log.d("nu","no null");
@@ -90,6 +121,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onPause() {
         super.onPause();
         //when on Pause, release camera in order to be used from other applications
+        stopHandler();
         releaseCamera();
     }
 
@@ -119,14 +151,15 @@ public class MainActivity extends AppCompatActivity {
             final long startTime = SystemClock.uptimeMillis();
             final List<Classifier.Recognition> results =
                     classifier.recognizeImage(rgbFrameBitmap, 90);
-            Log.v("Detect: %s", results.toString());
+//            Log.v("Detect: %s", results.toString());
             showResults(results);
     }
 
     private void showResults(List<Classifier.Recognition> results) {
         Classifier.Recognition recognition = results.get(0);
         if (recognition != null) {
-            if (recognition.getTitle() != null && recognition.getConfidence() != null && recognition.getConfidence() > 0.9) {
+            Toast.makeText(this, recognition.getTitle().toString() + "   " + String.format("%.2f", (100 * recognition.getConfidence())) + "%", Toast.LENGTH_LONG).show();
+            if (recognition.getTitle() != null && recognition.getConfidence() != null && recognition.getConfidence() > 0.7) {
 //                Toast.makeText(this, recognition.getTitle(), Toast.LENGTH_LONG).show();
 
                 switch (recognition.getTitle()) {
@@ -153,7 +186,8 @@ public class MainActivity extends AppCompatActivity {
                         break;
                 }
             } else {
-                Toast.makeText(this, "Uang tidak terdeteksi", Toast.LENGTH_LONG).show();
+                tidakTerdeteksi.start();
+//                Toast.makeText(this, "Uang tidak terdeteksi", Toast.LENGTH_LONG).show();
             }
         }
     }
